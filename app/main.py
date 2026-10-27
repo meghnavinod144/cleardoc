@@ -143,18 +143,19 @@ def run_extraction(document_id: str, db: Session = Depends(get_db)) -> dict:
         )
 
     try:
-        fields = extraction.extract_bill_fields(doc.raw_text)
+        kind, fields = extraction.extract_fields(doc.raw_text)
     except ValueError as error:
-        raise HTTPException(status_code=502, detail=str(error))
+        raise HTTPException(status_code=422, detail=str(error))
 
-    doc.extracted_fields = fields.model_dump_json()
+    payload = {"document_kind": kind, **fields.model_dump()}
+    doc.extracted_fields = json.dumps(payload)
     doc.status = "extracted"
     db.commit()
 
     return {
         "document_id": doc.id,
         "status": doc.status,
-        "fields": fields.model_dump(),
+        "fields": payload,
     }
 
 

@@ -223,6 +223,7 @@ function showFields(fields) {
     document_kind: "Document type", consumer_number: "Consumer number",
     billing_period: "Billing period", due_date: "Due date",
     units_consumed_kwh: "Units consumed", total_amount_rs: "Total amount",
+    patient_name: "Patient", report_date: "Report date", lab_name: "Laboratory",
   };
   const pretty = (k, v) => {
     if (k === "total_amount_rs") return "₹ " + Number(v).toLocaleString("en-IN", {minimumFractionDigits: 2});
@@ -230,10 +231,21 @@ function showFields(fields) {
     if (k === "document_kind") return String(v).replaceAll("_", " ");
     return v;
   };
-  $("fields").innerHTML = Object.entries(fields)
-    .filter(([, v]) => v !== null)
-    .map(([k, v]) => `<div class="frow"><span>${labels[k] || k}</span><b>${pretty(k, v)}</b></div>`)
-    .join("");
+  const rows = [];
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === null || (Array.isArray(v) && v.length === 0)) continue;
+    if (Array.isArray(v)) {
+      // A list of sub-records (e.g. lab test results) → one row each.
+      for (const t of v) {
+        const flag = t.flag && t.flag !== "NORMAL" ? ` <span style="color:#dc2626;font-weight:700">${t.flag}</span>` : "";
+        const ref = t.reference_range ? `<br><small style="color:var(--faint)">normal: ${t.reference_range}</small>` : "";
+        rows.push(`<div class="frow"><span>${t.name}${ref}</span><b>${t.value ?? "—"} ${t.unit ?? ""}${flag}</b></div>`);
+      }
+    } else {
+      rows.push(`<div class="frow"><span>${labels[k] || k}</span><b>${pretty(k, v)}</b></div>`);
+    }
+  }
+  $("fields").innerHTML = rows.join("");
   $("fields").classList.add("show");
 }
 

@@ -34,7 +34,7 @@ def preprocess(image: Image.Image) -> Image.Image:
     LEARNING.md: measure every preprocessing step, never assume it helps.
     """
     gray = ImageOps.grayscale(image)
-    if gray.width < 1200:
+    if gray.width < 800:
         gray = gray.resize((gray.width * 2, gray.height * 2), Image.LANCZOS)
     return ImageOps.autocontrast(gray)
 

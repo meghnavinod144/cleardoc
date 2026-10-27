@@ -80,13 +80,34 @@ class MockProvider:
         def number(value):
             return float(value.replace(",", "")) if value else None
 
+        # Lab-report extraction (the prompt carries the module's instructions)
+        if "medical lab report" in text:
+            tests = []
+            row = re.compile(
+                r"^([A-Za-z][A-Za-z ()/-]+?)\s+([\d.]+)\s+(\S+)\s+Ref:\s*([\d.]+\s*-\s*[\d.]+)\s*(LOW|HIGH|NORMAL)?",
+                re.MULTILINE,
+            )
+            for m in row.finditer(text):
+                tests.append({
+                    "name": m.group(1).strip(), "value": float(m.group(2)),
+                    "unit": m.group(3), "reference_range": m.group(4).replace(" ", ""),
+                    "flag": m.group(5),
+                })
+            fields = {
+                "patient_name": find(r"Patient Name\s*:?\s+(.+)"),
+                "report_date": find(r"Report Date\s*:?\s+(.+)"),
+                "lab_name": find(r"^([A-Z][A-Za-z ]+LABORATOR\w*)"),
+                "tests": tests,
+            }
+            return json.dumps(fields)
+
+        # Utility-bill extraction
         fields = {
-            "document_kind": "electricity_bill" if "Electricity" in text else "unknown",
-            "consumer_number": find(r"Consumer Number\s*\n?\s*(\d+)"),
-            "billing_period": find(r"Billing Period\s+(.+)"),
-            "due_date": find(r"Due Date\s+(.+)"),
-            "units_consumed_kwh": number(find(r"Units Consumed\s+([\d,]+)")),
-            "total_amount_rs": number(find(r"TOTAL AMOUNT PAYABLE\s+Rs\s*([\d,.]+)")),
+            "consumer_number": find(r"Consumer Number\s*:?\s*\n?\s*(\d+)"),
+            "billing_period": find(r"Billing Period\s*:?\s+(.+)"),
+            "due_date": find(r"Due Date\s*:?\s+(.+)"),
+            "units_consumed_kwh": number(find(r"Units Consumed\s*:?\s+([\d,]+)")),
+            "total_amount_rs": number(find(r"TOTAL AMOUNT PAYABLE\s*:?\s+Rs\s*([\d,.]+)")),
         }
         return json.dumps(fields)
 

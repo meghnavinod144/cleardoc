@@ -125,3 +125,21 @@ the WORST page's confidence); upscaling for small images; removed the
   LOWERED confidence (91.8 vs 92.8) and was removed. Never ship an
   "improvement" without numbers. (First tiny taste of evals!)
 - Guard rails: max 5 PDF pages per OCR run (cost/time control).
+
+## Session 9 — module #2: lab reports (plug-in architecture proven)
+
+**Built:** app/modules.py (module registry: keywords + schema +
+instructions per document type; keyword classifier), extraction.py made
+module-driven, lab report schema with nested TestResult rows, generic
+field rendering in the UI, sample lab report. Core pipeline: unchanged.
+
+**Learned:**
+- The plug-in promise held: document type #2 = one new class in
+  modules.py + mock patterns. Upload/OCR/index/ask untouched.
+- Nested Pydantic schemas (LabReportFields contains list[TestResult]).
+- REGRESSION TESTING caught a real bug: Session 8's 2x upscale changed
+  Tesseract's reading ORDER on two-column layouts (labels then values),
+  silently breaking bill extraction. Fixed by upscaling only <800px.
+  Lesson: after ANY change, retest what already worked.
+- Medical safety in the module itself: instructions say extraction only,
+  never diagnose.
