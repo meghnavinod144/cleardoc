@@ -94,3 +94,17 @@ at "/". End-to-end tested through a real headless browser.
   decision stays on the backend (never trust the client).
 - E2E test: a headless browser clicking through the real UI proves the
   whole stack works together, not just each endpoint alone.
+
+## Session 7 — design pass + mobile-first
+
+**Built:** redesigned frontend: drag-and-drop upload, animated pipeline
+stepper, extracted-fields card with ₹ formatting, chat-style Q&A with
+per-answer sources, phone-first layout, PWA manifest. /static mounted.
+
+**Learned:**
+- UI v1's job is proving the pipeline; the design pass is its own step.
+- Mobile-first: design for the phone screen, let desktop inherit.
+- PWA = web app that installs to the home screen (manifest + HTTPS);
+  native App Store apps are a separate build track, same backend API.
+- API-first architecture means ANY frontend (web, Android, iOS) reuses
+  the same backend unchanged.

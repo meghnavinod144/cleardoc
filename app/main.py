@@ -21,6 +21,8 @@ from app.models import Chunk, Document
 # Create any tables that don't exist yet (reads the models' definitions).
 Base.metadata.create_all(bind=engine)
 
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
 app = FastAPI(
     title="ClearDoc API",
     description="Understand everyday documents: upload, explain, guide.",
@@ -32,6 +34,9 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_TYPES = {"application/pdf", "image/jpeg", "image/png"}
 MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+
+# Serve the frontend's extra files (manifest, icons) under /static.
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 def get_db():
