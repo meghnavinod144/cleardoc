@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ocr
+from app import extraction, ocr
 from app.database import Base, SessionLocal, engine
 from app.models import Document
 
@@ -116,6 +116,34 @@ def run_ocr(document_id: str, db: Session = Depends(get_db)) -> dict:
         "confidence": result["confidence"],
         "word_count": result["word_count"],
         "text_preview": result["text"][:400],
+    }
+
+
+@app.post("/documents/{document_id}/extract")
+def run_extraction(document_id: str, db: Session = Depends(get_db)) -> dict:
+    """Turn the OCR text blob into labeled, validated fields (via the LLM)."""
+    doc = db.get(Document, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if doc.status != "ocr_done" or not doc.raw_text:
+        raise HTTPException(
+            status_code=409,  # 409 Conflict: valid request, wrong state
+            detail=f"Document must be OCR'd first (current status: {doc.status}).",
+        )
+
+    try:
+        fields = extraction.extract_bill_fields(doc.raw_text)
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail=str(error))
+
+    doc.extracted_fields = fields.model_dump_json()
+    doc.status = "extracted"
+    db.commit()
+
+    return {
+        "document_id": doc.id,
+        "status": doc.status,
+        "fields": fields.model_dump(),
     }
 
 

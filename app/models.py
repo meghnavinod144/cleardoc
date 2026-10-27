@@ -34,6 +34,9 @@ class Document(Base):
     raw_text: Mapped[str | None] = mapped_column(String, nullable=True)
     ocr_confidence: Mapped[float | None] = mapped_column(nullable=True)
 
+    # Filled by the extraction step: the labeled fields, stored as JSON text.
+    extracted_fields: Mapped[str | None] = mapped_column(String, nullable=True)
+
     # Tracks the document through the pipeline:
     # received → ocr_done → extracted → ready  (we add stages as we build)
     status: Mapped[str] = mapped_column(String(30), default="received")

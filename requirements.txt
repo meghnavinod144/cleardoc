@@ -4,3 +4,4 @@ python-multipart==0.0.20
 sqlalchemy==2.0.36
 pytesseract==0.3.13
 pillow>=10.0
+pydantic>=2.0

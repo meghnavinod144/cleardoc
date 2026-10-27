@@ -46,3 +46,20 @@ Tested on a generated sample electricity bill: 95.3% confidence.
 - OCR as separate endpoint = uploads stay fast, failures retryable.
 - Changing a table's columns in dev = delete the SQLite file; in
   production this needs MIGRATIONS (Alembic) — scheduled for later.
+
+## Session 4 — LLM extraction layer
+
+**Built:** app/llm.py (provider abstraction: AnthropicProvider ready + Mock
+for offline dev), app/extraction.py (prompt + Pydantic validation),
+POST /documents/{id}/extract, status received → ocr_done → extracted.
+
+**Learned:**
+- An LLM API call = an HTTPS POST with the prompt + API key; reply is JSON.
+- Abstraction layer: only llm.py knows WHICH provider; swapping models =
+  one file. Mock provider = build/test without keys or cost.
+- Never trust LLM output: Pydantic validates shape and types; fail loudly.
+- Prompts live in code and say: use null, never invent. (Anti-hallucination
+  starts in the prompt.)
+- 409 Conflict = right request, wrong state (extract before OCR).
+- Mock's regex missed consumer_number (label and value on separate lines)
+  → honest null, exactly as designed. The real LLM handles layout quirks.
