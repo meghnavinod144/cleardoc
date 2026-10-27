@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import extraction, llm, ocr, rag
+from app import extraction, llm, ocr, rag, speech
 from app.database import Base, SessionLocal, engine
 from app.models import Chunk, Document
 
@@ -187,8 +187,25 @@ def index_document(document_id: str, db: Session = Depends(get_db)) -> dict:
     return {"document_id": document_id, "chunks_indexed": len(pieces), "status": doc.status}
 
 
+@app.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)) -> dict:
+    """Fallback voice input: audio in, text out (browser path is primary)."""
+    if not speech.available():
+        raise HTTPException(
+            status_code=503,
+            detail="Server speech model not installed; use a browser with "
+            "built-in speech recognition (Chrome), or install a Vosk model.",
+        )
+    audio = await file.read()
+    try:
+        return {"text": speech.transcribe(audio)}
+    except Exception as error:
+        raise HTTPException(status_code=422, detail=f"Could not transcribe: {error}")
+
+
 class AskRequest(BaseModel):
     question: str
+    language: str = "English"  # the user's preferred answer language
 
 
 @app.post("/documents/{document_id}/ask")
@@ -207,7 +224,7 @@ def ask_question(document_id: str, body: AskRequest, db: Session = Depends(get_d
     ]
 
     retrieved = rag.retrieve(body.question, stored, top_k=3)
-    prompt = rag.build_answer_prompt(body.question, retrieved)
+    prompt = rag.build_answer_prompt(body.question, retrieved, body.language)
     answer = llm.get_llm().complete(prompt)
 
     return {

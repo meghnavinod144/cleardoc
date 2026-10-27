@@ -143,3 +143,21 @@ field rendering in the UI, sample lab report. Core pipeline: unchanged.
   Lesson: after ANY change, retest what already worked.
 - Medical safety in the module itself: instructions say extraction only,
   never diagnose.
+
+## Session 10 — any-document fallback + voice & language layer
+
+**Built:** unknown document types (agreements, certificates…) now flow to
+Q&A as kind "other" instead of erroring; language selector (English /
+Hindi / Malayalam) passed into the answer prompt (the LLM is the
+translator); mic button — browser speech recognition (en-IN/hi-IN/ml-IN)
+with MediaRecorder + /transcribe fallback (Vosk socket, honest 503 when
+no model); spoken answers via browser text-to-speech.
+
+**Learned:**
+- Two-layer answer to "can it read any document?": Q&A yes (RAG is
+  generic); structured fields only for registered modules.
+- Voice has two paths: on-device browser STT (free, multilingual,
+  private) and a server socket for browsers without it.
+- The LLM doubles as the translator: "Reply in Malayalam" in the prompt.
+- External hosts can be blocked (model download refused by egress proxy)
+  — design sockets so missing pieces degrade honestly, never fake.

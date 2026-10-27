@@ -27,14 +27,17 @@ DOCUMENT TEXT:
 """
 
 
+class GenericFields(BaseModel):
+    """Fallback for unrecognized documents: no structured fields, but the
+    document still flows on to indexing and Q&A — ANY readable document
+    can be asked about; only the labeled-fields table needs a module."""
+
+
 def extract_fields(ocr_text: str) -> tuple[str, BaseModel]:
     """OCR text in → (document kind, validated fields) out."""
     module = classify(ocr_text)
     if module is None:
-        raise ValueError(
-            "Could not recognize this document type. "
-            f"Supported so far: bills, lab reports."
-        )
+        return "other", GenericFields()
 
     field_list = "\n".join(
         f"- {name}" for name in module.schema.model_fields

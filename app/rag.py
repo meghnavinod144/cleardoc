@@ -101,9 +101,12 @@ DOCUMENT EXCERPTS:
 
 QUESTION: {question}
 
+Reply in {language}. If the document is in another language, translate the
+facts faithfully — numbers and dates exactly as printed.
+
 ANSWER:"""
 
 
-def build_answer_prompt(question: str, retrieved: list[dict]) -> str:
+def build_answer_prompt(question: str, retrieved: list[dict], language: str = "English") -> str:
     context = "\n---\n".join(f"[excerpt {c['position']}] {c['text']}" for c in retrieved)
-    return ANSWER_PROMPT.format(context=context, question=question)
+    return ANSWER_PROMPT.format(context=context, question=question, language=language)

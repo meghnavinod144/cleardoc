@@ -103,6 +103,14 @@
     background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-size: 1.1rem;
   }
   .askrow button:disabled { opacity: .45; }
+  #mic { background: #fff; border: 1.5px solid var(--line); font-size: 1.15rem; }
+  #mic.listening { border-color: #dc2626; background: #fef2f2; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { transform: scale(1.08); } }
+  #lang {
+    border: 1.5px solid var(--line); border-radius: 10px; padding: 6px 8px;
+    font-size: .85rem; color: var(--ink); background: #fff;
+  }
+  .speak { border: 0; background: none; cursor: pointer; font-size: 1rem; margin-top: 6px; opacity: .6; }
   .error { color: #dc2626; font-size: .85rem; margin-top: 10px; }
   footer { text-align: center; font-size: .75rem; color: var(--faint); padding-top: 8px; }
 </style>
@@ -142,12 +150,21 @@
   </section>
 
   <section class="card" id="askcard">
-    <h2><span class="stepnum">2</span> Ask about it</h2>
+    <h2 style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px"><span class="stepnum">2</span> Ask about it</span>
+      <select id="lang" title="Answer language">
+        <option value="en-IN">English</option>
+        <option value="hi-IN">हिन्दी</option>
+        <option value="ml-IN">മലയാളം</option>
+      </select>
+    </h2>
     <div class="chat" id="chat"></div>
     <div class="askrow">
+      <button id="mic" aria-label="Speak your question" title="Speak">🎤</button>
       <input type="text" id="question" placeholder="How much do I pay, and by when?">
       <button id="ask" aria-label="Send">➤</button>
     </div>
+    <div class="error" id="micerr"></div>
   </section>
 
   <footer>Documents are processed privately and can be deleted anytime.</footer>
@@ -261,6 +278,8 @@ function bubble(cls, text) {
 
 $("question").addEventListener("keydown", e => { if (e.key === "Enter") $("ask").click(); });
 
+const LANG_NAMES = { "en-IN": "English", "hi-IN": "Hindi", "ml-IN": "Malayalam" };
+
 $("ask").onclick = async () => {
   const q = $("question").value.trim();
   if (!q || !docId) return;
@@ -271,9 +290,18 @@ $("ask").onclick = async () => {
     const r = await api(`/documents/${docId}/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q }),
+      body: JSON.stringify({ question: q, language: LANG_NAMES[$("lang").value] || "English" }),
     });
     thinking.textContent = r.answer;
+    // 🔊 read the answer aloud (browser text-to-speech, free, offline)
+    const speak = document.createElement("button");
+    speak.className = "speak"; speak.textContent = "🔊 Listen";
+    speak.onclick = () => {
+      const u = new SpeechSynthesisUtterance(r.answer);
+      u.lang = $("lang").value;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    };
+    thinking.appendChild(speak);
     const details = document.createElement("details");
     details.innerHTML = "<summary>Sources</summary>" +
       r.sources.map(s => `<div class="src">relevance ${s.score}\n${s.text}</div>`).join("");
@@ -282,6 +310,48 @@ $("ask").onclick = async () => {
     thinking.textContent = "Error: " + err.message;
   } finally {
     $("ask").disabled = false;
+  }
+};
+
+/* --- voice input ---
+   Primary: the browser's own speech recognition (Chrome — supports
+   en-IN, hi-IN, ml-IN). Fallback: record audio, send to /transcribe. */
+const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+$("mic").onclick = async () => {
+  $("micerr").textContent = "";
+  if (Recognition) {
+    const rec = new Recognition();
+    rec.lang = $("lang").value;          // listen in the chosen language
+    rec.interimResults = false;
+    $("mic").classList.add("listening");
+    rec.onresult = (e) => { $("question").value = e.results[0][0].transcript; };
+    rec.onerror = (e) => { $("micerr").textContent = "Mic error: " + e.error; };
+    rec.onend = () => $("mic").classList.remove("listening");
+    rec.start();
+    return;
+  }
+  // Fallback: record ~5s and send to the server's /transcribe endpoint.
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    const parts = [];
+    recorder.ondataavailable = (e) => parts.push(e.data);
+    recorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      $("mic").classList.remove("listening");
+      const form = new FormData();
+      form.append("file", new Blob(parts, { type: "audio/webm" }), "voice.webm");
+      try {
+        const r = await api("/transcribe", { method: "POST", body: form });
+        $("question").value = r.text;
+      } catch (err) { $("micerr").textContent = err.message; }
+    };
+    $("mic").classList.add("listening");
+    recorder.start();
+    setTimeout(() => recorder.stop(), 5000);
+  } catch (err) {
+    $("micerr").textContent = "Microphone not available: " + err.message;
   }
 };
 </script>
