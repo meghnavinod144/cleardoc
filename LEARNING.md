@@ -31,3 +31,18 @@ row; new endpoints GET /documents/{id} and GET /documents; 404 handling.
   SQLite today, PostgreSQL in the cloud phase (change one URL).
 - db.add() stages, db.commit() makes permanent (same mental model as Git).
 - 404 = "no such resource" — look up, check None, raise HTTPException.
+
+## Session 3 — OCR pipeline
+
+**Built:** app/ocr.py (Tesseract + preprocessing), POST /documents/{id}/ocr,
+raw_text + ocr_confidence columns, status moves received → ocr_done.
+Tested on a generated sample electricity bill: 95.3% confidence.
+
+**Learned:**
+- OCR = pattern recognition on pixels; preprocessing (grayscale,
+  autocontrast) improves accuracy on real-world photos.
+- Confidence scores let the app KNOW when it read badly (later: ask the
+  user for a clearer photo instead of answering from garbage).
+- OCR as separate endpoint = uploads stay fast, failures retryable.
+- Changing a table's columns in dev = delete the SQLite file; in
+  production this needs MIGRATIONS (Alembic) — scheduled for later.

@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import ocr
 from app.database import Base, SessionLocal, engine
 from app.models import Document
 
@@ -85,6 +86,36 @@ async def upload_document(
         "original_filename": record.original_filename,
         "size_bytes": record.size_bytes,
         "status": record.status,
+    }
+
+
+@app.post("/documents/{document_id}/ocr")
+def run_ocr(document_id: str, db: Session = Depends(get_db)) -> dict:
+    """Run OCR on a stored document: pixels in, text out.
+
+    Separate endpoint (instead of OCR-inside-upload) so uploads stay fast
+    and OCR failures can be retried without re-uploading.
+    """
+    doc = db.get(Document, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if doc.content_type == "application/pdf":
+        raise HTTPException(status_code=501, detail="PDF OCR arrives next; images only for now.")
+
+    result = ocr.extract_text(doc.stored_path)
+
+    # Save the outcome + move the bookmark (status) forward.
+    doc.raw_text = result["text"]
+    doc.ocr_confidence = result["confidence"]
+    doc.status = "ocr_done"
+    db.commit()
+
+    return {
+        "document_id": doc.id,
+        "status": doc.status,
+        "confidence": result["confidence"],
+        "word_count": result["word_count"],
+        "text_preview": result["text"][:400],
     }
 
 

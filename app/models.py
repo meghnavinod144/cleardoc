@@ -30,6 +30,10 @@ class Document(Base):
     size_bytes: Mapped[int] = mapped_column(Integer)
     stored_path: Mapped[str] = mapped_column(String(500))
 
+    # Filled by the OCR step (nullable=True: empty until OCR runs).
+    raw_text: Mapped[str | None] = mapped_column(String, nullable=True)
+    ocr_confidence: Mapped[float | None] = mapped_column(nullable=True)
+
     # Tracks the document through the pipeline:
     # received → ocr_done → extracted → ready  (we add stages as we build)
     status: Mapped[str] = mapped_column(String(30), default="received")
