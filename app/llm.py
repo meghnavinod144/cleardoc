@@ -60,7 +60,18 @@ class MockProvider:
     """
 
     def complete(self, prompt: str, max_tokens: int = 1024) -> str:
-        text = prompt  # the OCR text is embedded in the prompt
+        # Crude Q&A mode: when the prompt is a RAG answer-prompt, reply by
+        # pointing at the most relevant excerpt (a real LLM writes prose).
+        if "DOCUMENT EXCERPTS:" in prompt and "QUESTION:" in prompt:
+            excerpts_part = prompt.split("DOCUMENT EXCERPTS:")[1].split("QUESTION:")[0]
+            first_excerpt = excerpts_part.strip().split("---")[0].strip()
+            return (
+                "Based on your document, the most relevant information is:\n"
+                f"{first_excerpt}\n"
+                "(MockProvider: plug in a real API key for a proper answer.)"
+            )
+
+        text = prompt  # extraction mode: the OCR text is embedded in the prompt
 
         def find(pattern):
             match = re.search(pattern, text)

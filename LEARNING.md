@@ -63,3 +63,19 @@ POST /documents/{id}/extract, status received → ocr_done → extracted.
 - 409 Conflict = right request, wrong state (extract before OCR).
 - Mock's regex missed consumer_number (label and value on separate lines)
   → honest null, exactly as designed. The real LLM handles layout quirks.
+
+## Session 5 — RAG: retrieval-augmented generation
+
+**Built:** app/rag.py (chunking, embeddings via MockEmbedder, cosine
+similarity, retrieval, answer prompt), Chunk table (our vector store),
+POST /documents/{id}/index and /ask with citations. Status → ready.
+
+**Learned:**
+- RAG = open-book exam: retrieve relevant chunks, LLM answers ONLY from them.
+- Chunking: split by lines into ~240-char pieces so retrieval is precise.
+- Embedding = text → vector (list of numbers); similar meaning → nearby
+  vectors. Mock: hashed word counts (word overlap). Real: semantic API.
+- Cosine similarity = the one formula behind "vector search".
+- Citations (sources with scores) come free from retrieval — show them.
+- Retrieval test: "due date + total" question correctly ranked the
+  TOTAL/due-date chunk first (0.387 vs 0.191 vs 0.083).

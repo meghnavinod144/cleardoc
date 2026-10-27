@@ -45,3 +45,21 @@ class Document(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
     )
+
+
+class Chunk(Base):
+    """One retrieval-sized piece of a document, with its embedding vector.
+
+    This table IS our vector store for now (embeddings as JSON text,
+    similarity computed in Python — fine for one user's documents).
+    The cloud phase swaps it for pgvector, which does the same thing
+    at database speed. Same socket pattern again.
+    """
+
+    __tablename__ = "chunks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    document_id: Mapped[str] = mapped_column(String(36), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(String)
+    embedding: Mapped[str] = mapped_column(String)  # JSON list of floats

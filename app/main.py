@@ -4,16 +4,18 @@ This file defines our web API: the "front door" of the backend.
 Run it with:  uvicorn app.main:app --reload
 """
 
+import json
 import uuid
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import extraction, ocr
+from app import extraction, llm, ocr, rag
 from app.database import Base, SessionLocal, engine
-from app.models import Document
+from app.models import Chunk, Document
 
 # Create any tables that don't exist yet (reads the models' definitions).
 Base.metadata.create_all(bind=engine)
@@ -144,6 +146,69 @@ def run_extraction(document_id: str, db: Session = Depends(get_db)) -> dict:
         "document_id": doc.id,
         "status": doc.status,
         "fields": fields.model_dump(),
+    }
+
+
+@app.post("/documents/{document_id}/index")
+def index_document(document_id: str, db: Session = Depends(get_db)) -> dict:
+    """Chunk the document text and store each chunk with its embedding.
+    After this, the document is ready to answer questions."""
+    doc = db.get(Document, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if not doc.raw_text:
+        raise HTTPException(status_code=409, detail="Run OCR first.")
+
+    # Re-indexing? Clear old chunks so we never store duplicates.
+    db.query(Chunk).filter(Chunk.document_id == document_id).delete()
+
+    embedder = rag.get_embedder()
+    pieces = rag.chunk_text(doc.raw_text)
+    for position, piece in enumerate(pieces):
+        db.add(Chunk(
+            id=str(uuid.uuid4()),
+            document_id=document_id,
+            position=position,
+            text=piece,
+            embedding=json.dumps(embedder.embed(piece)),
+        ))
+    doc.status = "ready"
+    db.commit()
+    return {"document_id": document_id, "chunks_indexed": len(pieces), "status": doc.status}
+
+
+class AskRequest(BaseModel):
+    question: str
+
+
+@app.post("/documents/{document_id}/ask")
+def ask_question(document_id: str, body: AskRequest, db: Session = Depends(get_db)) -> dict:
+    """RAG in action: retrieve the relevant chunks, answer ONLY from them."""
+    doc = db.get(Document, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if doc.status != "ready":
+        raise HTTPException(status_code=409, detail=f"Index the document first (status: {doc.status}).")
+
+    rows = db.query(Chunk).filter(Chunk.document_id == document_id).all()
+    stored = [
+        {"text": r.text, "embedding": json.loads(r.embedding), "position": r.position}
+        for r in rows
+    ]
+
+    retrieved = rag.retrieve(body.question, stored, top_k=3)
+    prompt = rag.build_answer_prompt(body.question, retrieved)
+    answer = llm.get_llm().complete(prompt)
+
+    return {
+        "document_id": document_id,
+        "question": body.question,
+        "answer": answer,
+        # Citations: exactly which excerpts the answer is grounded in.
+        "sources": [
+            {"excerpt": c["position"], "score": c["score"], "text": c["text"]}
+            for c in retrieved
+        ],
     }
 
 
