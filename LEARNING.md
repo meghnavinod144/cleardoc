@@ -79,3 +79,18 @@ POST /documents/{id}/index and /ask with citations. Status → ready.
 - Citations (sources with scores) come free from retrieval — show them.
 - Retrieval test: "due date + total" question correctly ranked the
   TOTAL/due-date chunk first (0.387 vs 0.191 vs 0.083).
+
+## Session 6 — the frontend
+
+**Built:** app/static/index.html — one page: upload & process (calls the
+four API endpoints in sequence, shows pipeline progress + extracted
+fields), ask box (calls /ask, shows answer + sources). Served by FastAPI
+at "/". End-to-end tested through a real headless browser.
+
+**Learned:**
+- HTML = structure, CSS = looks, JavaScript = behaviour. fetch() is the
+  browser's way to call APIs — the frontend is a CUSTOMER of our backend.
+- The frontend is thin on purpose: it sends input, shows output; every
+  decision stays on the backend (never trust the client).
+- E2E test: a headless browser clicking through the real UI proves the
+  whole stack works together, not just each endpoint alone.

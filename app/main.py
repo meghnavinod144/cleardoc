@@ -9,6 +9,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -41,6 +42,12 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+@app.get("/")
+def home():
+    """Serve the frontend: one HTML page, from this same server."""
+    return FileResponse("app/static/index.html")
 
 
 @app.get("/health")

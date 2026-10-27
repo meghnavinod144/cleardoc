@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearDoc</title>
+<style>
+  /* CSS = the styling language: how things LOOK. */
+  :root { --ink: #1a2332; --soft: #5a6a7e; --line: #dde4ec; --accent: #2563eb; --bg: #f5f7fa; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--ink); padding: 24px 16px; }
+  main { max-width: 680px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  .tagline { color: var(--soft); margin-bottom: 24px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 1.05rem; margin-bottom: 12px; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 0.95rem; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: wait; }
+  input[type=file], input[type=text] { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; font-size: 0.95rem; }
+  .status { font-size: 0.88rem; color: var(--soft); margin-top: 10px; white-space: pre-line; }
+  .answer { background: #eef4ff; border-radius: 8px; padding: 14px; margin-top: 12px; white-space: pre-wrap; }
+  .fields { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.9rem; }
+  .fields td { border-top: 1px solid var(--line); padding: 7px 4px; }
+  .fields td:first-child { color: var(--soft); }
+  details { margin-top: 10px; font-size: 0.85rem; color: var(--soft); }
+  .src { border-left: 3px solid var(--line); padding: 6px 10px; margin: 8px 0; white-space: pre-wrap; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ClearDoc</h1>
+  <p class="tagline">Upload a confusing document. Get it explained.</p>
+
+  <section class="card">
+    <h2>1. Upload your document</h2>
+    <input type="file" id="file" accept=".png,.jpg,.jpeg,.pdf">
+    <button id="process">Upload &amp; process</button>
+    <div class="status" id="pstatus"></div>
+    <table class="fields hidden" id="fields"></table>
+  </section>
+
+  <section class="card hidden" id="askcard">
+    <h2>2. Ask about it</h2>
+    <input type="text" id="question" placeholder="e.g. How much do I have to pay, and by when?">
+    <button id="ask">Ask</button>
+    <div class="answer hidden" id="answer"></div>
+    <details class="hidden" id="sources"><summary>Where this answer came from</summary></details>
+  </section>
+</main>
+
+<script>
+/* JavaScript = the behaviour language: what happens when you click.
+   Every function below just calls our backend API with fetch()
+   — the browser's built-in way to make HTTP requests. */
+
+let docId = null;  // remember which document we're working with
+
+const $ = (id) => document.getElementById(id);
+
+async function api(path, options) {
+  const response = await fetch(path, options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || "Something went wrong");
+  return data;
+}
+
+$("process").onclick = async () => {
+  const file = $("file").files[0];
+  if (!file) { $("pstatus").textContent = "Choose a file first."; return; }
+  $("process").disabled = true;
+  try {
+    // The same four API calls we tested with curl — now from the browser.
+    $("pstatus").textContent = "Uploading…";
+    const form = new FormData();
+    form.append("file", file);
+    const doc = await api("/documents", { method: "POST", body: form });
+    docId = doc.document_id;
+
+    $("pstatus").textContent = "Reading the document (OCR)…";
+    const ocr = await api(`/documents/${docId}/ocr`, { method: "POST" });
+
+    $("pstatus").textContent = "Extracting the facts…";
+    const ex = await api(`/documents/${docId}/extract`, { method: "POST" });
+
+    $("pstatus").textContent = "Indexing for questions…";
+    await api(`/documents/${docId}/index`, { method: "POST" });
+
+    $("pstatus").textContent = `Done ✓  (read with ${ocr.confidence}% confidence)`;
+    showFields(ex.fields);
+    $("askcard").classList.remove("hidden");
+  } catch (err) {
+    $("pstatus").textContent = "Error: " + err.message;
+  } finally {
+    $("process").disabled = false;
+  }
+};
+
+function showFields(fields) {
+  const labels = {
+    document_kind: "Document type", consumer_number: "Consumer number",
+    billing_period: "Billing period", due_date: "Due date",
+    units_consumed_kwh: "Units consumed (kWh)", total_amount_rs: "Total amount (Rs)",
+  };
+  const rows = Object.entries(fields)
+    .filter(([, v]) => v !== null)
+    .map(([k, v]) => `<tr><td>${labels[k] || k}</td><td><strong>${v}</strong></td></tr>`);
+  $("fields").innerHTML = rows.join("");
+  $("fields").classList.remove("hidden");
+}
+
+$("ask").onclick = async () => {
+  const question = $("question").value.trim();
+  if (!question || !docId) return;
+  $("ask").disabled = true;
+  $("answer").classList.remove("hidden");
+  $("answer").textContent = "Thinking…";
+  try {
+    const result = await api(`/documents/${docId}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    $("answer").textContent = result.answer;
+    const srcs = result.sources.map(s =>
+      `<div class="src">score ${s.score}\n${s.text}</div>`).join("");
+    $("sources").innerHTML = "<summary>Where this answer came from</summary>" + srcs;
+    $("sources").classList.remove("hidden");
+  } catch (err) {
+    $("answer").textContent = "Error: " + err.message;
+  } finally {
+    $("ask").disabled = false;
+  }
+};
+</script>
+</body>
+</html>
