@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# User data — never commit uploaded documents
+data/uploads/*
+!data/uploads/.gitkeep
+
+# Secrets — never commit API keys
+.env
+
+# Editors / OS
+.vscode/
+.DS_Store
