@@ -16,3 +16,18 @@ don't fully understand. (Interview gold later. Honesty mandatory.)
 - `.gitignore` keeps user data and secrets out of version control.
 
 **Still unclear:** (fill in after reviewing — e.g. what `async` really does)
+
+## Session 2 — database layer
+
+**Built:** SQLAlchemy + SQLite; Document model (table); upload now writes a
+row; new endpoints GET /documents/{id} and GET /documents; 404 handling.
+
+**Learned:**
+- A database = the app's structured, searchable memory. Files hold bytes;
+  the DB holds facts ABOUT them.
+- Table = sheet, row = one record, column = one field. Primary key = the
+  unique ID per row (the document_id we return!).
+- ORM = translator: Python classes/objects in, SQL out. Same code works on
+  SQLite today, PostgreSQL in the cloud phase (change one URL).
+- db.add() stages, db.commit() makes permanent (same mental model as Git).
+- 404 = "no such resource" — look up, check None, raise HTTPException.

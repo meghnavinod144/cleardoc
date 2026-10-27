@@ -6,6 +6,7 @@ venv/
 
 # User data — never commit uploaded documents
 data/uploads/*
+data/*.db
 !data/uploads/.gitkeep
 
 # Secrets — never commit API keys

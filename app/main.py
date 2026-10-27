@@ -7,39 +7,51 @@ Run it with:  uvicorn app.main:app --reload
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-# The FastAPI application object. Every endpoint below is registered on it.
+from app.database import Base, SessionLocal, engine
+from app.models import Document
+
+# Create any tables that don't exist yet (reads the models' definitions).
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(
     title="ClearDoc API",
     description="Understand everyday documents: upload, explain, guide.",
-    version="0.1.0",
+    version="0.2.0",
 )
 
-# Where uploaded files are stored for now (local folder).
-# Later (cloud phase) this becomes Azure Blob Storage — only this line changes.
 UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-# Basic input validation rules — never trust what users send.
 ALLOWED_TYPES = {"application/pdf", "image/jpeg", "image/png"}
 MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+def get_db():
+    """Dependency: hand each request its own database session,
+    and guarantee it's closed afterwards, even if the request crashes."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @app.get("/health")
 def health() -> dict:
     """Liveness check: monitoring systems call this to ask 'are you up?'"""
-    return {"status": "ok", "service": "cleardoc-api", "version": "0.1.0"}
+    return {"status": "ok", "service": "cleardoc-api", "version": "0.2.0"}
 
 
 @app.post("/documents", status_code=201)
-async def upload_document(file: UploadFile = File(...)) -> dict:
-    """Accept a document (PDF or photo) and store it.
-
-    Returns a document_id that every later step (OCR, extraction, Q&A)
-    will use to refer to this document.
-    """
-    # 1. Reject types we can't process — 415 = "Unsupported Media Type".
+async def upload_document(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Accept a document (PDF or photo), store the file, record it in the DB."""
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=415,
@@ -47,22 +59,59 @@ async def upload_document(file: UploadFile = File(...)) -> dict:
             f"Allowed: PDF, JPEG, PNG.",
         )
 
-    # 2. Read the bytes and enforce a size limit — 413 = "Payload Too Large".
     contents = await file.read()
     if len(contents) > MAX_BYTES:
         raise HTTPException(status_code=413, detail="File too large (max 10 MB).")
 
-    # 3. Give the document a unique, unguessable ID (never trust filenames:
-    #    two users may both upload 'bill.pdf', and filenames can be malicious).
     doc_id = str(uuid.uuid4())
     extension = Path(file.filename or "upload").suffix.lower()
     destination = UPLOAD_DIR / f"{doc_id}{extension}"
     destination.write_bytes(contents)
 
-    # 4. Tell the client what happened, in JSON.
+    # NEW: record the document in the database — the app's memory.
+    record = Document(
+        id=doc_id,
+        original_filename=file.filename or "upload",
+        content_type=file.content_type,
+        size_bytes=len(contents),
+        stored_path=str(destination),
+        status="received",
+    )
+    db.add(record)      # stage the new row
+    db.commit()         # actually write it (like Git commit: make it permanent)
+
     return {
         "document_id": doc_id,
-        "original_filename": file.filename,
-        "size_bytes": len(contents),
-        "status": "received",
+        "original_filename": record.original_filename,
+        "size_bytes": record.size_bytes,
+        "status": record.status,
     }
+
+
+@app.get("/documents/{document_id}")
+def get_document(document_id: str, db: Session = Depends(get_db)) -> dict:
+    """Look up ONE document by its id — the payoff of returning document_id."""
+    doc = db.get(Document, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return {
+        "document_id": doc.id,
+        "original_filename": doc.original_filename,
+        "content_type": doc.content_type,
+        "size_bytes": doc.size_bytes,
+        "status": doc.status,
+        "created_at": doc.created_at.isoformat(),
+    }
+
+
+@app.get("/documents")
+def list_documents(db: Session = Depends(get_db)) -> list[dict]:
+    """List recent documents, newest first."""
+    docs = db.execute(
+        select(Document).order_by(Document.created_at.desc()).limit(50)
+    ).scalars()
+    return [
+        {"document_id": d.id, "original_filename": d.original_filename,
+         "status": d.status, "created_at": d.created_at.isoformat()}
+        for d in docs
+    ]
