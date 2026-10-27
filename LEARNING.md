@@ -108,3 +108,20 @@ per-answer sources, phone-first layout, PWA manifest. /static mounted.
   native App Store apps are a separate build track, same backend API.
 - API-first architecture means ANY frontend (web, Android, iOS) reuses
   the same backend unchanged.
+
+## Session 8 — PDFs + messy photos
+
+**Built:** PDF support both kinds (born-digital → pdftotext text layer at
+conf 100; scanned → pdf2image rasterize at 300dpi + OCR per page, report
+the WORST page's confidence); upscaling for small images; removed the
+501 block. Test files: digital PDF, scanned PDF, degraded photo.
+
+**Learned:**
+- Two kinds of PDF: born-digital (text embedded — extract free, exact)
+  vs scanned (image in a wrapper — OCR). Try the free path first.
+- Report the minimum page confidence, not the average — honest about the
+  worst part of a document.
+- MEASURE preprocessing: the median denoise filter we assumed would help
+  LOWERED confidence (91.8 vs 92.8) and was removed. Never ship an
+  "improvement" without numbers. (First tiny taste of evals!)
+- Guard rails: max 5 PDF pages per OCR run (cost/time control).
