@@ -161,3 +161,22 @@ no model); spoken answers via browser text-to-speech.
 - The LLM doubles as the translator: "Reply in Malayalam" in the prompt.
 - External hosts can be blocked (model download refused by egress proxy)
   — design sockets so missing pieces degrade honestly, never fake.
+
+## Session 11 — accounts & security + first automated tests
+
+**Built:** app/auth.py (bcrypt password hashing, JWT tokens, rate
+limiting), User table, owner_id on documents, ownership enforced on every
+endpoint (foreign docs answer 404, same as nonexistent), auto-delete of
+the original file after indexing, login/signup UI, and tests/ — a pytest
+suite (6 tests) proving isolation, auth, and the privacy promise. Test
+DB isolated via conftest.py + CLEARDOC_DATABASE_URL.
+
+**Learned:**
+- Never store passwords: bcrypt hash (slow on purpose) + compare hashes.
+- JWT = a signed "who I am" note the client carries; verified without DB.
+- Isolation pattern: one owned_document() helper; 404 for other users'
+  docs so we never confirm their existence. Login errors never say
+  whether email or password was wrong.
+- Auto-delete after indexing = the privacy promise as code.
+- Tests must be repeatable: a throwaway test DB via conftest.py; our
+  first run failed on leftover data — test isolation is real work.

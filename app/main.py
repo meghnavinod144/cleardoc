@@ -8,15 +8,15 @@ import json
 import uuid
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import extraction, llm, ocr, rag, speech
+from app import auth, extraction, llm, ocr, rag, speech
 from app.database import Base, SessionLocal, engine
-from app.models import Chunk, Document
+from app.models import Chunk, Document, User
 
 # Create any tables that don't exist yet (reads the models' definitions).
 Base.metadata.create_all(bind=engine)
@@ -61,10 +61,57 @@ def health() -> dict:
     return {"status": "ok", "service": "cleardoc-api", "version": "0.2.0"}
 
 
+# ------------------------------------------------------------------ auth --
+
+class Credentials(BaseModel):
+    email: str
+    password: str
+
+
+@app.post("/auth/signup", status_code=201)
+def signup(body: Credentials, request: Request, db: Session = Depends(get_db)) -> dict:
+    auth.rate_limit(request)
+    if len(body.password) < 8:
+        raise HTTPException(status_code=422, detail="Password must be at least 8 characters.")
+    email = body.email.strip().lower()
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=409, detail="An account with this email already exists.")
+    user = User(id=str(uuid.uuid4()), email=email,
+                password_hash=auth.hash_password(body.password))
+    db.add(user)
+    db.commit()
+    return {"token": auth.create_token(user.id)}
+
+
+@app.post("/auth/login")
+def login(body: Credentials, request: Request, db: Session = Depends(get_db)) -> dict:
+    auth.rate_limit(request)
+    user = db.query(User).filter(User.email == body.email.strip().lower()).first()
+    # Same error for wrong email and wrong password — never reveal
+    # which one failed (that would let attackers probe for accounts).
+    if user is None or not auth.verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Wrong email or password.")
+    return {"token": auth.create_token(user.id)}
+
+
+def owned_document(document_id: str, user_id: str, db: Session) -> Document:
+    """Fetch a document ONLY if it belongs to this user.
+
+    A document that exists but belongs to someone else returns the same
+    404 as one that doesn't exist — we never confirm other people's
+    documents exist. This one function is the per-user isolation.
+    """
+    doc = db.get(Document, document_id)
+    if doc is None or doc.owner_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return doc
+
+
 @app.post("/documents", status_code=201)
 async def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    user_id: str = Depends(auth.current_user_id),
 ) -> dict:
     """Accept a document (PDF or photo), store the file, record it in the DB."""
     if file.content_type not in ALLOWED_TYPES:
@@ -86,6 +133,7 @@ async def upload_document(
     # NEW: record the document in the database — the app's memory.
     record = Document(
         id=doc_id,
+        owner_id=user_id,
         original_filename=file.filename or "upload",
         content_type=file.content_type,
         size_bytes=len(contents),
@@ -104,15 +152,14 @@ async def upload_document(
 
 
 @app.post("/documents/{document_id}/ocr")
-def run_ocr(document_id: str, db: Session = Depends(get_db)) -> dict:
+def run_ocr(document_id: str, db: Session = Depends(get_db),
+            user_id: str = Depends(auth.current_user_id)) -> dict:
     """Run OCR on a stored document: pixels in, text out.
 
     Separate endpoint (instead of OCR-inside-upload) so uploads stay fast
     and OCR failures can be retried without re-uploading.
     """
-    doc = db.get(Document, document_id)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found.")
+    doc = owned_document(document_id, user_id, db)
     result = ocr.extract_text(doc.stored_path)
 
     # Save the outcome + move the bookmark (status) forward.
@@ -131,11 +178,10 @@ def run_ocr(document_id: str, db: Session = Depends(get_db)) -> dict:
 
 
 @app.post("/documents/{document_id}/extract")
-def run_extraction(document_id: str, db: Session = Depends(get_db)) -> dict:
+def run_extraction(document_id: str, db: Session = Depends(get_db),
+                   user_id: str = Depends(auth.current_user_id)) -> dict:
     """Turn the OCR text blob into labeled, validated fields (via the LLM)."""
-    doc = db.get(Document, document_id)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found.")
+    doc = owned_document(document_id, user_id, db)
     if doc.status != "ocr_done" or not doc.raw_text:
         raise HTTPException(
             status_code=409,  # 409 Conflict: valid request, wrong state
@@ -160,12 +206,11 @@ def run_extraction(document_id: str, db: Session = Depends(get_db)) -> dict:
 
 
 @app.post("/documents/{document_id}/index")
-def index_document(document_id: str, db: Session = Depends(get_db)) -> dict:
+def index_document(document_id: str, db: Session = Depends(get_db),
+                   user_id: str = Depends(auth.current_user_id)) -> dict:
     """Chunk the document text and store each chunk with its embedding.
     After this, the document is ready to answer questions."""
-    doc = db.get(Document, document_id)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found.")
+    doc = owned_document(document_id, user_id, db)
     if not doc.raw_text:
         raise HTTPException(status_code=409, detail="Run OCR first.")
 
@@ -183,6 +228,13 @@ def index_document(document_id: str, db: Session = Depends(get_db)) -> dict:
             embedding=json.dumps(embedder.embed(piece)),
         ))
     doc.status = "ready"
+
+    # PRIVACY: the original file is no longer needed — raw_text and
+    # chunks carry everything. Delete it so a breach of storage can't
+    # leak the user's actual document image.
+    if doc.stored_path:
+        Path(doc.stored_path).unlink(missing_ok=True)
+        doc.stored_path = ""
     db.commit()
     return {"document_id": document_id, "chunks_indexed": len(pieces), "status": doc.status}
 
@@ -209,11 +261,10 @@ class AskRequest(BaseModel):
 
 
 @app.post("/documents/{document_id}/ask")
-def ask_question(document_id: str, body: AskRequest, db: Session = Depends(get_db)) -> dict:
+def ask_question(document_id: str, body: AskRequest, db: Session = Depends(get_db),
+                 user_id: str = Depends(auth.current_user_id)) -> dict:
     """RAG in action: retrieve the relevant chunks, answer ONLY from them."""
-    doc = db.get(Document, document_id)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found.")
+    doc = owned_document(document_id, user_id, db)
     if doc.status != "ready":
         raise HTTPException(status_code=409, detail=f"Index the document first (status: {doc.status}).")
 
@@ -240,11 +291,10 @@ def ask_question(document_id: str, body: AskRequest, db: Session = Depends(get_d
 
 
 @app.get("/documents/{document_id}")
-def get_document(document_id: str, db: Session = Depends(get_db)) -> dict:
+def get_document(document_id: str, db: Session = Depends(get_db),
+                 user_id: str = Depends(auth.current_user_id)) -> dict:
     """Look up ONE document by its id — the payoff of returning document_id."""
-    doc = db.get(Document, document_id)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found.")
+    doc = owned_document(document_id, user_id, db)
     return {
         "document_id": doc.id,
         "original_filename": doc.original_filename,
@@ -256,10 +306,12 @@ def get_document(document_id: str, db: Session = Depends(get_db)) -> dict:
 
 
 @app.get("/documents")
-def list_documents(db: Session = Depends(get_db)) -> list[dict]:
+def list_documents(db: Session = Depends(get_db),
+                   user_id: str = Depends(auth.current_user_id)) -> list[dict]:
     """List recent documents, newest first."""
     docs = db.execute(
-        select(Document).order_by(Document.created_at.desc()).limit(50)
+        select(Document).where(Document.owner_id == user_id)
+        .order_by(Document.created_at.desc()).limit(50)
     ).scalars()
     return [
         {"document_id": d.id, "original_filename": d.original_filename,

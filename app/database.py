@@ -6,12 +6,13 @@ we change ONE line (DATABASE_URL) to point at PostgreSQL — the rest of
 the code never knows the difference. That's the point of this file.
 """
 
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 # sqlite:///./data/cleardoc.db  →  "a SQLite database, stored in this file"
 # Later becomes:  postgresql://user:password@host:5432/cleardoc
-DATABASE_URL = "sqlite:///./data/cleardoc.db"
+DATABASE_URL = os.environ.get("CLEARDOC_DATABASE_URL", "sqlite:///./data/cleardoc.db")
 
 # The engine manages the actual connection to the database.
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})

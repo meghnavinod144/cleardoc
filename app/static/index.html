@@ -98,6 +98,11 @@
     font-size: .95rem; outline: none; min-width: 0;
   }
   .askrow input:focus { border-color: var(--accent); }
+  #authcard input {
+    width: 100%; padding: 12px 14px; border: 1.5px solid var(--line);
+    border-radius: 12px; font-size: .95rem; margin-bottom: 10px; outline: none;
+  }
+  #authcard input:focus { border-color: var(--accent); }
   .askrow button {
     flex: none; width: 48px; border: 0; border-radius: 12px; cursor: pointer;
     background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-size: 1.1rem;
@@ -130,7 +135,18 @@
     </div>
   </header>
 
-  <section class="card">
+  <section class="card" id="authcard">
+    <h2>Sign in to ClearDoc</h2>
+    <input type="email" id="email" placeholder="Email" autocomplete="email">
+    <input type="password" id="password" placeholder="Password (8+ characters)" autocomplete="current-password">
+    <div style="display:flex;gap:10px">
+      <button class="btn" id="login" style="margin-top:8px">Log in</button>
+      <button class="btn" id="signup" style="margin-top:8px;background:#fff;color:var(--accent);border:1.5px solid var(--accent);box-shadow:none">Sign up</button>
+    </div>
+    <div class="error" id="autherr"></div>
+  </section>
+
+  <section class="card" id="doccard" style="display:none">
     <h2><span class="stepnum">1</span> Your document</h2>
     <div class="drop" id="drop">
       <span id="droptext"><strong>Tap to choose</strong> or drop a file here<br>
@@ -174,6 +190,34 @@
 let docId = null;
 const $ = (id) => document.getElementById(id);
 
+/* --- auth: keep the token, send it with every API call --- */
+let token = null;
+try { token = localStorage.getItem("cleardoc_token"); } catch (e) {}
+
+function showApp(loggedIn) {
+  $("authcard").style.display = loggedIn ? "none" : "";
+  $("doccard").style.display = loggedIn ? "" : "none";
+}
+showApp(!!token);
+
+async function doAuth(path) {
+  $("autherr").textContent = "";
+  try {
+    const r = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: $("email").value, password: $("password").value }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Failed");
+    token = d.token;
+    try { localStorage.setItem("cleardoc_token", token); } catch (e) {}
+    showApp(true);
+  } catch (err) { $("autherr").textContent = err.message; }
+}
+document.getElementById("login").onclick = () => doAuth("/auth/login");
+document.getElementById("signup").onclick = () => doAuth("/auth/signup");
+
 /* --- file picking: click or drag & drop --- */
 const drop = $("drop"), fileInput = $("file");
 drop.onclick = () => fileInput.click();
@@ -186,8 +230,11 @@ function showPicked() {
   if (f) $("droptext").innerHTML = `<span class="picked">📄 ${f.name}</span>`;
 }
 
-async function api(path, options) {
+async function api(path, options = {}) {
+  options.headers = Object.assign({}, options.headers,
+    token ? { "Authorization": "Bearer " + token } : {});
   const r = await fetch(path, options);
+  if (r.status === 401) { showApp(false); throw new Error("Please log in."); }
   const d = await r.json();
   if (!r.ok) throw new Error(d.detail || "Something went wrong");
   return d;

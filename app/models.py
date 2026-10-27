@@ -12,6 +12,20 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
 
+class User(Base):
+    """One registered person. We store the bcrypt HASH, never the password."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+
 class Document(Base):
     """One row per uploaded document — the app's memory of what exists.
 
@@ -24,6 +38,10 @@ class Document(Base):
     # Primary key: the unique handle for this row — the same document_id
     # we return to the user at upload time. (Your "contact ID 3" idea.)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+
+    # Who owns this document. Every query MUST filter by this —
+    # user A must never see user B's documents.
+    owner_id: Mapped[str] = mapped_column(String(36), index=True)
 
     original_filename: Mapped[str] = mapped_column(String(255))
     content_type: Mapped[str] = mapped_column(String(100))
