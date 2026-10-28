@@ -202,3 +202,24 @@ Cause: `python -m pytest` adds the project root to sys.path; bare
 `pytest` (as CI ran it) does not. Fix: pyproject.toml declares
 `pythonpath = ["."]` so every invocation behaves identically.
 Debugged by reading the robot's own logs. Run #2: green.
+
+## Session 13 — evals: the system grades itself
+
+**Built:** evals/golden_set.json (8 cases across 3 documents, incl. an
+honesty case: a question the document CANNOT answer) + evals/run_evals.py
+(drives the real pipeline, scores retrieval and answers separately,
+saves timestamped results).
+
+**Baseline (mock provider): retrieval 7/7, answers 4/8.**
+
+**Learned:**
+- Score layers SEPARATELY: perfect retrieval + weak answers = the
+  problem is the LLM layer, not search. One number per layer =
+  debuggable quality.
+- Our 4/8 is exactly the mock's known crudeness (returns one excerpt,
+  can't combine facts, can't refuse). The evals LOCALIZED it with
+  numbers — and when the real key lands, the delta becomes a
+  measurable before/after story.
+- Honesty is testable: "what's my bank account number?" must be
+  refused, not invented.
+- Golden sets grow: every bug ever found should become a case.

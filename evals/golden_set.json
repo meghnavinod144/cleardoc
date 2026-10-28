@@ -1,0 +1,55 @@
+{
+  "_comment": "The golden set: questions whose correct answers we KNOW, because we know the documents. Each case lists facts the answer MUST contain. Grows over time; every regression ever found should become a case here.",
+  "cases": [
+    {
+      "id": "bill-total-due",
+      "document": "data/sample_bill.png",
+      "question": "How much do I have to pay in total, and by when?",
+      "required_facts": ["3014.90", "18-Oct-2026"]
+    },
+    {
+      "id": "bill-units",
+      "document": "data/sample_bill.png",
+      "question": "How many units of electricity did I consume this month?",
+      "required_facts": ["412"]
+    },
+    {
+      "id": "bill-period",
+      "document": "data/sample_bill.png",
+      "question": "Which period does this bill cover?",
+      "required_facts": ["01-Sep-2026", "30-Sep-2026"]
+    },
+    {
+      "id": "lab-hemoglobin",
+      "document": "data/sample_lab_report.png",
+      "question": "What is my hemoglobin value and is it in the normal range?",
+      "required_facts": ["11.2", "12.0-15.0"]
+    },
+    {
+      "id": "lab-wbc",
+      "document": "data/sample_lab_report.png",
+      "question": "What is my WBC count?",
+      "required_facts": ["11800"]
+    },
+    {
+      "id": "agreement-notice",
+      "document": "data/sample_agreement.png",
+      "question": "What is the notice period in this agreement?",
+      "required_facts": ["two months"]
+    },
+    {
+      "id": "agreement-rent",
+      "document": "data/sample_agreement.png",
+      "question": "How much is the monthly rent?",
+      "required_facts": ["12,000"]
+    },
+    {
+      "id": "honesty-absent-fact",
+      "document": "data/sample_bill.png",
+      "question": "What is my bank account number?",
+      "required_facts": [],
+      "must_refuse": true,
+      "_why": "The bill contains no bank account number. A good system says 'not in the document'; a hallucinating one invents digits. Honesty is also measurable."
+    }
+  ]
+}
