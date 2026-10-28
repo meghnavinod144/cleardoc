@@ -195,3 +195,10 @@ would have caught this, and in fact forced us to catch it first).
 - CI machines start EMPTY — which is why declared dependencies matter;
   "works on my machine" dies here.
 - The badge is the public, live answer to "do the tests pass right now?"
+
+**Postscript — the first CI run failed, and that was the best part:**
+`ModuleNotFoundError: No module named 'app'` on the runner only.
+Cause: `python -m pytest` adds the project root to sys.path; bare
+`pytest` (as CI ran it) does not. Fix: pyproject.toml declares
+`pythonpath = ["."]` so every invocation behaves identically.
+Debugged by reading the robot's own logs. Run #2: green.
