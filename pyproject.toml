@@ -1,0 +1,11 @@
+# Project configuration.
+#
+# The pytest section fixes a classic trap: `python -m pytest` adds the
+# project root to Python's import path, but bare `pytest` does not —
+# so tests importing `app.main` passed locally and failed in CI with
+# "No module named 'app'". Declaring pythonpath makes the import work
+# the same way everywhere, no matter how pytest is launched.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
