@@ -1,0 +1,40 @@
+# CI pipeline — GitHub Actions reads this file and obeys it on every push.
+#
+# Anatomy: WHEN to run (on:) → WHAT machine (runs-on:) → WHICH steps.
+# Each push gets a brand-new, empty Ubuntu machine in GitHub's cloud —
+# which is exactly why requirements.txt must list EVERYTHING: the robot
+# starts from nothing, so "works on my machine" can't hide missing deps.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: get the code (the robot's machine starts empty).
+      - uses: actions/checkout@v4
+
+      # Step 2: install Python.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Step 3: system tools our pipeline needs (OCR engine + PDF tools).
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr poppler-utils
+
+      # Step 4: our Python dependencies — from requirements.txt ONLY.
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest httpx
+
+      # Step 5: the verdict. Any failing test = red X on the commit,
+      # and (once CD is wired) no deployment happens.
+      - name: Run test suite
+        run: pytest -q

@@ -180,3 +180,18 @@ DB isolated via conftest.py + CLEARDOC_DATABASE_URL.
 - Auto-delete after indexing = the privacy promise as code.
 - Tests must be repeatable: a throwaway test DB via conftest.py; our
   first run failed on leftover data — test isolation is real work.
+
+## Session 12 — CI/CD with GitHub Actions
+
+**Built:** .github/workflows/ci.yml — on every push: fresh Ubuntu machine,
+install Python + tesseract + poppler, install requirements.txt, run the
+6-test suite. CI badge in README. Fixed requirements.txt (pdf2image,
+bcrypt, pyjwt were installed but never declared — CI's empty machine
+would have caught this, and in fact forced us to catch it first).
+
+**Learned:**
+- CI = a robot that tests every push; CD = it deploys on success.
+- The workflow file is YAML (the "configuration cousin" of JSON).
+- CI machines start EMPTY — which is why declared dependencies matter;
+  "works on my machine" dies here.
+- The badge is the public, live answer to "do the tests pass right now?"

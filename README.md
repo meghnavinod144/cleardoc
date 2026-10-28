@@ -1,5 +1,7 @@
 # ClearDoc
 
+[![CI](https://github.com/meghnavinod144/cleardoc/actions/workflows/ci.yml/badge.svg)](https://github.com/meghnavinod144/cleardoc/actions)
+
 An AI assistant for the documents of everyday life — lab reports, utility bills,
 certificates, agreements. Upload a document, get it explained in your own
 language (text or voice), with honest insights and concrete next steps.
