@@ -1,0 +1,14 @@
+# What NEVER goes into the shipping box — smaller, safer images.
+.git
+.github
+.pytest_cache
+__pycache__
+*.pyc
+.env
+data/uploads
+data/*.db
+evals/results
+models
+tests
+LEARNING.md
+README.md

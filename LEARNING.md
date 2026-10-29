@@ -223,3 +223,19 @@ saves timestamped results).
 - Honesty is testable: "what's my bank account number?" must be
   refused, not invented.
 - Golden sets grow: every bug ever found should become a case.
+
+## Session 14 — Docker: the shipping container
+
+**Built:** Dockerfile (python-slim base + tesseract/poppler + deps +
+app, config via environment variables, port 8000), .dockerignore
+(secrets, user data, git — never in the box), and a second CI job that
+builds the image and smoke-tests /health inside the running container.
+
+**Learned (general, beyond this project):**
+- A container = app + dependencies + OS pieces in one sealed box that
+  runs identically anywhere. Clouds fundamentally run boxes.
+- Layer ordering matters: requirements before code = cached rebuilds.
+- Config comes from environment variables at start time, never baked in
+  — one image serves dev and prod.
+- Sandbox blocked the registries → CI builds the image instead, which
+  is the industry-standard place for image builds anyway.

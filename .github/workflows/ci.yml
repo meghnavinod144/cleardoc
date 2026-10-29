@@ -38,3 +38,20 @@ jobs:
       # and (once CD is wired) no deployment happens.
       - name: Run test suite
         run: pytest -q
+
+  # Second job, runs in parallel: prove the shipping container builds
+  # and actually serves. This is the exact image Azure will run.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the container image
+        run: docker build -t cleardoc:ci .
+
+      - name: Smoke test — start the container and hit /health
+        run: |
+          docker run -d -p 8000:8000 --name cleardoc cleardoc:ci
+          sleep 6
+          curl -sf http://localhost:8000/health
+          docker logs cleardoc | tail -3
