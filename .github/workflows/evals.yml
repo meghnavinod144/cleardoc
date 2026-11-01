@@ -49,6 +49,18 @@ jobs:
             head -c 400 /tmp/b3; echo
             echo "--- same call from python urllib (what the app uses) ---"
             python3 evals/probe_gemini.py
+            echo "--- POST generateContent v1beta, header auth ---"
+            curl -s -o /tmp/p1 -w 'status=%{http_code}\n' -X POST \
+              -H "x-goog-api-key: $GEMINI_API_KEY" -H "Content-Type: application/json" \
+              -d '{"contents":[{"parts":[{"text":"Reply with exactly: OK"}]}]}' \
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+            head -c 400 /tmp/p1; echo
+            echo "--- POST generateContent v1, header auth ---"
+            curl -s -o /tmp/p2 -w 'status=%{http_code}\n' -X POST \
+              -H "x-goog-api-key: $GEMINI_API_KEY" -H "Content-Type: application/json" \
+              -d '{"contents":[{"parts":[{"text":"Reply with exactly: OK"}]}]}' \
+              "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent"
+            head -c 400 /tmp/p2; echo
           } > eval_reports/diag.txt
 
       - name: Run the golden-set evals
