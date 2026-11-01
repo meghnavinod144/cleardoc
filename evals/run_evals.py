@@ -85,8 +85,16 @@ def run() -> dict:
         client.post(f"/documents/{doc_id}/index", headers=headers)
         doc_ids[path] = doc_id
 
+    # Free-tier pacing: stay under ~10 requests/minute when a real
+    # provider is configured (the mock needs no manners).
+    import os
+    import time
+    pace = 8 if (os.environ.get("GEMINI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")) else 0
+
     results = []
     for case in cases:
+        if pace:
+            time.sleep(pace)
         response = client.post(
             f"/documents/{doc_ids[case['document']]}/ask", headers=headers,
             json={"question": case["question"]},

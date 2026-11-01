@@ -12,6 +12,7 @@ The API key is read from the environment (.env), NEVER written in code.
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -109,6 +110,9 @@ class GeminiProvider:
             except urllib.error.HTTPError as error:
                 if error.code == 404:  # model unknown → discover, retry once
                     self.model = self._discover_model()
+                    return call(self.model, config)
+                if error.code == 429:  # rate limited → wait politely, retry once
+                    time.sleep(35)
                     return call(self.model, config)
                 detail = error.read().decode(errors="replace")[:300]
                 raise RuntimeError(f"Gemini HTTP {error.code}: {detail}") from error
