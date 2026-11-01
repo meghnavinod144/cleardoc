@@ -192,6 +192,8 @@ def run_extraction(document_id: str, db: Session = Depends(get_db),
         kind, fields = extraction.extract_fields(doc.raw_text)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error))
+    except Exception as error:  # provider/network failure → named, not a 500
+        raise HTTPException(status_code=502, detail=f"LLM provider error: {error}")
 
     payload = {"document_kind": kind, **fields.model_dump()}
     doc.extracted_fields = json.dumps(payload)

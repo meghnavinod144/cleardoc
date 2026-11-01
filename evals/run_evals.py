@@ -61,7 +61,9 @@ def provider_check() -> dict:
 
 
 def run() -> dict:
-    client = TestClient(app)
+    # raise_server_exceptions=False: a 500 from the app becomes a response
+    # we can record, never a crash of the eval run itself.
+    client = TestClient(app, raise_server_exceptions=False)
 
     # One throwaway eval user per run.
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
