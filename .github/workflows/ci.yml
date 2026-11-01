@@ -39,19 +39,30 @@ jobs:
       - name: Run test suite
         run: pytest -q
 
-  # Second job, runs in parallel: prove the shipping container builds
-  # and actually serves. This is the exact image Azure will run.
+  # Second job, runs in parallel: prove the shipping container builds,
+  # actually serves — and publish it to GitHub's container registry
+  # (ghcr.io), the shelf Azure pulls the app from. GITHUB_TOKEN signs in;
+  # no extra secrets needed.
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # allowed to push images to ghcr.io
     steps:
       - uses: actions/checkout@v4
 
       - name: Build the container image
-        run: docker build -t cleardoc:ci .
+        run: docker build -t ghcr.io/meghnavinod144/cleardoc:latest .
 
       - name: Smoke test — start the container and hit /health
         run: |
-          docker run -d -p 8000:8000 --name cleardoc cleardoc:ci
+          docker run -d -p 8000:8000 --name cleardoc ghcr.io/meghnavinod144/cleardoc:latest
           sleep 6
           curl -sf http://localhost:8000/health
           docker logs cleardoc | tail -3
+
+      - name: Publish the image to ghcr.io (main branch only)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push ghcr.io/meghnavinod144/cleardoc:latest
