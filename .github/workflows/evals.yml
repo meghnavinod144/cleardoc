@@ -31,6 +31,24 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt httpx
 
+      - name: Provider diagnostics (statuses + Google's error bodies, never the key)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          mkdir -p eval_reports
+          {
+            echo "key length: ${#GEMINI_API_KEY}"
+            echo "--- v1beta/models, header auth ---"
+            curl -s -o /tmp/b1 -w 'status=%{http_code}\n' -H "x-goog-api-key: $GEMINI_API_KEY" https://generativelanguage.googleapis.com/v1beta/models
+            head -c 400 /tmp/b1; echo
+            echo "--- v1beta/models, query auth ---"
+            curl -s -o /tmp/b2 -w 'status=%{http_code}\n' "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"
+            head -c 400 /tmp/b2; echo
+            echo "--- v1/models, header auth ---"
+            curl -s -o /tmp/b3 -w 'status=%{http_code}\n' -H "x-goog-api-key: $GEMINI_API_KEY" https://generativelanguage.googleapis.com/v1/models
+            head -c 400 /tmp/b3; echo
+          } > eval_reports/diag.txt
+
       - name: Run the golden-set evals
         env:
           # The secret: set once in the repo settings, injected here.
@@ -46,6 +64,6 @@ jobs:
           cat eval_reports/latest.json
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add eval_reports/latest.json
+          git add eval_reports/latest.json eval_reports/diag.txt
           git commit -m "Update eval scorecard [skip ci]" || echo "no change"
           git push
