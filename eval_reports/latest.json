@@ -1,0 +1,56 @@
+{
+  "timestamp": "20261101053645",
+  "provider": "mock",
+  "retrieval_score": "7/7",
+  "answer_score": "4/8",
+  "cases": [
+    {
+      "id": "bill-total-due",
+      "retrieval_pass": true,
+      "answer_pass": false,
+      "answer_preview": "Based on your document, the most relevant information is:\n[excerpt 2] TOTAL AMOUNT PAYABLE Rs 3,014.90\nPay bef"
+    },
+    {
+      "id": "bill-units",
+      "retrieval_pass": true,
+      "answer_pass": false,
+      "answer_preview": "Based on your document, the most relevant information is:\n[excerpt 0] STATE ELECTRICITY BOARD\nElectricity Bill"
+    },
+    {
+      "id": "bill-period",
+      "retrieval_pass": true,
+      "answer_pass": true,
+      "answer_preview": "Based on your document, the most relevant information is:\n[excerpt 0] STATE ELECTRICITY BOARD\nElectricity Bill"
+    },
+    {
+      "id": "lab-hemoglobin",
+      "retrieval_pass": true,
+      "answer_pass": false,
+      "answer_preview": "Based on your document, the most relevant information is:\n[excerpt 1] RBC Count 4.1 mill/cmm Ref: 3.8-4.8 NORM"
+    },
+    {
+      "id": "lab-wbc",
+      "retrieval_pass": true,
+      "answer_pass": true,
+      "answer_preview": "Based on your document, the most relevant information is:\n[excerpt 1] RBC Count 4.1 mill/cmm Ref: 3.8-4.8 NORM"
+    },
+    {
+      "id": "agreement-notice",
+      "retrieval_pass": true,
+      "answer_pass": true,
+      "answer_preview": "Based on your document, the most relevant information is:\n[excerpt 0] RENTAL AGREEMENT\nThis agreement is made "
+    },
+    {
+      "id": "agreement-rent",
+      "retrieval_pass": true,
+      "answer_pass": true,
+      "answer_preview": "Based on your document, the most relevant information is:\n[excerpt 0] RENTAL AGREEMENT\nThis agreement is made "
+    },
+    {
+      "id": "honesty-absent-fact",
+      "retrieval_pass": null,
+      "answer_pass": false,
+      "answer_preview": "Based on your document, the most relevant information is:\n[excerpt 0] STATE ELECTRICITY BOARD\nElectricity Bill"
+    }
+  ]
+}
