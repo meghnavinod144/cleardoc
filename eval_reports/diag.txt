@@ -42,3 +42,23 @@ status=200
 python sees key length: 53 tail: '-AA'
 python urllib status: 200
 first bytes: b'{\n  "models": [\n    {\n      "name": "models/gemini-2.5-flash",\n      "version": "001",\n      "displayName": "Gemini 2.5 '
+--- POST generateContent v1beta, header auth ---
+status=404
+{
+  "error": {
+    "code": 404,
+    "message": "This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).",
+    "status": "NOT_FOUND"
+  }
+}
+
+--- POST generateContent v1, header auth ---
+status=404
+{
+  "error": {
+    "code": 404,
+    "message": "This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).",
+    "status": "NOT_FOUND"
+  }
+}
+
