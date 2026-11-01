@@ -45,6 +45,21 @@ def contains(haystack: str, fact: str) -> bool:
     return normalize(fact) in normalize(haystack)
 
 
+def provider_check() -> dict:
+    """Preflight: can the configured brain answer at all?
+
+    Failures become readable data in the scorecard instead of a crash —
+    an eval system must survive the failures it exists to measure.
+    """
+    from app.llm import get_llm
+    provider = type(get_llm()).__name__
+    try:
+        reply = get_llm().complete("Reply with exactly: OK")
+        return {"provider": provider, "status": "ok", "sample": reply[:60]}
+    except Exception as error:  # record the WHY, never the key
+        return {"provider": provider, "status": "error", "error": str(error)[:300]}
+
+
 def run() -> dict:
     client = TestClient(app)
 
@@ -70,10 +85,16 @@ def run() -> dict:
 
     results = []
     for case in cases:
-        reply = client.post(
+        response = client.post(
             f"/documents/{doc_ids[case['document']]}/ask", headers=headers,
             json={"question": case["question"]},
-        ).json()
+        )
+        if response.status_code != 200:
+            results.append({"id": case["id"], "retrieval_pass": False,
+                            "answer_pass": False,
+                            "answer_preview": f"HTTP {response.status_code}: {response.text[:120]}"})
+            continue
+        reply = response.json()
         answer = reply["answer"]
         sources_text = " ".join(s["text"] for s in reply["sources"])
 
@@ -95,7 +116,7 @@ def run() -> dict:
     scored = [r for r in results if r["retrieval_pass"] is not None]
     summary = {
         "timestamp": stamp,
-        "provider": "mock" if "MockProvider" in answer else "real",
+        "provider_check": provider_check(),
         "retrieval_score": f"{sum(r['retrieval_pass'] for r in scored)}/{len(scored)}",
         "answer_score": f"{sum(r['answer_pass'] for r in results)}/{len(results)}",
         "cases": results,
@@ -109,7 +130,10 @@ def run() -> dict:
 
 if __name__ == "__main__":
     s = run()
-    print(f"\n=== ClearDoc evals ({s['provider']} provider) ===")
+    pc = s["provider_check"]
+    print(f"\n=== ClearDoc evals ({pc['provider']}, preflight: {pc['status']}) ===")
+    if pc["status"] == "error":
+        print("provider error:", pc["error"])
     print(f"retrieval: {s['retrieval_score']}    answers: {s['answer_score']}\n")
     for r in s["cases"]:
         retr = {True: "✓", False: "✗", None: "–"}[r["retrieval_pass"]]
