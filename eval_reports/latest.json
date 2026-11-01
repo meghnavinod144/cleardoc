@@ -1,18 +1,18 @@
 {
-  "timestamp": "20261101062711",
+  "timestamp": "20261101064738",
   "provider_check": {
     "provider": "GeminiProvider",
     "status": "error",
-    "error": "HTTP Error 429: Too Many Requests"
+    "error": "Gemini HTTP 503: {\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n"
   },
-  "retrieval_score": "0/8",
-  "answer_score": "0/8",
+  "retrieval_score": "1/7",
+  "answer_score": "2/8",
   "cases": [
     {
       "id": "bill-total-due",
-      "retrieval_pass": false,
-      "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: The read operation timed out\"}"
+      "retrieval_pass": true,
+      "answer_pass": true,
+      "answer_preview": "The total amount payable is **Rs 3,014.90**, and the due date to pay it is **18-Oct-2026**."
     },
     {
       "id": "bill-units",
@@ -48,13 +48,13 @@
       "id": "agreement-rent",
       "retrieval_pass": false,
       "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 429: Too Many Requests\"}"
+      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 503: Service Unavailable\"}"
     },
     {
       "id": "honesty-absent-fact",
-      "retrieval_pass": false,
-      "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 429: Too Many Requests\"}"
+      "retrieval_pass": null,
+      "answer_pass": true,
+      "answer_preview": "I cannot find your bank account number in the document."
     }
   ]
 }
