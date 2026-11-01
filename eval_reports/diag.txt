@@ -38,3 +38,7 @@ status=200
       "outputTokenLimit": 65536,
       "supportedGenerationMethods": [
         "gene
+--- same call from python urllib (what the app uses) ---
+python sees key length: 53 tail: '-AA'
+python urllib status: 200
+first bytes: b'{\n  "models": [\n    {\n      "name": "models/gemini-2.5-flash",\n      "version": "001",\n      "displayName": "Gemini 2.5 '
