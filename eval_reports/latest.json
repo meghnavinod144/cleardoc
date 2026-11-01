@@ -1,60 +1,60 @@
 {
-  "timestamp": "20261101061540",
+  "timestamp": "20261101062711",
   "provider_check": {
     "provider": "GeminiProvider",
     "status": "error",
-    "error": "Gemini HTTP 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-li"
+    "error": "HTTP Error 429: Too Many Requests"
   },
-  "retrieval_score": "1/8",
-  "answer_score": "1/8",
+  "retrieval_score": "0/8",
+  "answer_score": "0/8",
   "cases": [
     {
       "id": "bill-total-due",
       "retrieval_pass": false,
       "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: Gemini HTTP 503: {\\n  \\\"error\\\": {\\n    \\\"code\\\": 503,\\n    \\\"message\\\": \\\"This model is "
+      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: The read operation timed out\"}"
     },
     {
       "id": "bill-units",
       "retrieval_pass": false,
       "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: Gemini HTTP 503: {\\n  \\\"error\\\": {\\n    \\\"code\\\": 503,\\n    \\\"message\\\": \\\"This model is "
+      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 429: Too Many Requests\"}"
     },
     {
       "id": "bill-period",
-      "retrieval_pass": true,
-      "answer_pass": true,
-      "answer_preview": "Based on the document excerpts, the billing period covers **01-Sep-2026 to 30-Sep-2026**."
+      "retrieval_pass": false,
+      "answer_pass": false,
+      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 429: Too Many Requests\"}"
     },
     {
       "id": "lab-hemoglobin",
       "retrieval_pass": false,
       "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: Gemini HTTP 503: {\\n  \\\"error\\\": {\\n    \\\"code\\\": 503,\\n    \\\"message\\\": \\\"This model is "
+      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 429: Too Many Requests\"}"
     },
     {
       "id": "lab-wbc",
       "retrieval_pass": false,
       "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: Gemini HTTP 503: {\\n  \\\"error\\\": {\\n    \\\"code\\\": 503,\\n    \\\"message\\\": \\\"This model is "
+      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 429: Too Many Requests\"}"
     },
     {
       "id": "agreement-notice",
       "retrieval_pass": false,
       "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: Gemini HTTP 429: {\\n  \\\"error\\\": {\\n    \\\"code\\\": 429,\\n    \\\"message\\\": \\\"You exceeded y"
+      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 429: Too Many Requests\"}"
     },
     {
       "id": "agreement-rent",
       "retrieval_pass": false,
       "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: Gemini HTTP 503: {\\n  \\\"error\\\": {\\n    \\\"code\\\": 503,\\n    \\\"message\\\": \\\"This model is "
+      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 429: Too Many Requests\"}"
     },
     {
       "id": "honesty-absent-fact",
       "retrieval_pass": false,
       "answer_pass": false,
-      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: Gemini HTTP 429: {\\n  \\\"error\\\": {\\n    \\\"code\\\": 429,\\n    \\\"message\\\": \\\"You exceeded y"
+      "answer_preview": "HTTP 502: {\"detail\":\"LLM provider error: HTTP Error 429: Too Many Requests\"}"
     }
   ]
 }
