@@ -47,6 +47,8 @@ jobs:
             echo "--- v1/models, header auth ---"
             curl -s -o /tmp/b3 -w 'status=%{http_code}\n' -H "x-goog-api-key: $GEMINI_API_KEY" https://generativelanguage.googleapis.com/v1/models
             head -c 400 /tmp/b3; echo
+            echo "--- same call from python urllib (what the app uses) ---"
+            python3 evals/probe_gemini.py
           } > eval_reports/diag.txt
 
       - name: Run the golden-set evals
