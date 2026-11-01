@@ -62,7 +62,7 @@ class GeminiProvider:
 
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+        self.model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 
     def _discover_model(self) -> str:
         """Ask Google which models THIS key can use, pick a flash one.
