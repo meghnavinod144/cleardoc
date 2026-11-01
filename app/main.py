@@ -278,7 +278,10 @@ def ask_question(document_id: str, body: AskRequest, db: Session = Depends(get_d
 
     retrieved = rag.retrieve(body.question, stored, top_k=3)
     prompt = rag.build_answer_prompt(body.question, retrieved, body.language)
-    answer = llm.get_llm().complete(prompt)
+    try:
+        answer = llm.get_llm().complete(prompt)
+    except Exception as error:  # provider failure → named, not a bare 500
+        raise HTTPException(status_code=502, detail=f"LLM provider error: {error}")
 
     return {
         "document_id": document_id,
