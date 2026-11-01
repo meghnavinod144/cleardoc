@@ -12,6 +12,7 @@ The API key is read from the environment (.env), NEVER written in code.
 import json
 import os
 import re
+import urllib.error
 import urllib.request
 
 
@@ -63,19 +64,50 @@ class GeminiProvider:
         self.api_key = api_key
         self.model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
+    def _discover_model(self) -> str:
+        """Ask Google which models THIS key can use, pick a flash one.
+
+        Model names change often; discovering beats hard-coding. A failure
+        here also reveals key problems precisely (the list call's error)."""
+        request = urllib.request.Request(
+            "https://generativelanguage.googleapis.com/v1beta/models",
+            headers={"x-goog-api-key": self.api_key},
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            body = json.load(response)
+        usable = [m["name"].split("/")[-1] for m in body.get("models", [])
+                  if "generateContent" in m.get("supportedGenerationMethods", [])]
+        preferred = [m for m in usable if "flash" in m
+                     and not any(x in m for x in ("image", "live", "tts", "audio"))]
+        if not (preferred or usable):
+            raise RuntimeError("Key valid but no usable Gemini models listed.")
+        return (preferred or usable)[0]
+
     def complete(self, prompt: str, max_tokens: int = 1024) -> str:
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"maxOutputTokens": max_tokens},
         }
-        request = urllib.request.Request(
-            self.API_URL.format(model=self.model),
-            data=json.dumps(payload).encode(),
-            headers={"x-goog-api-key": self.api_key,
-                     "content-type": "application/json"},
-        )
-        with urllib.request.urlopen(request, timeout=60) as response:
-            body = json.load(response)
+
+        def call(model: str) -> dict:
+            request = urllib.request.Request(
+                self.API_URL.format(model=model),
+                data=json.dumps(payload).encode(),
+                headers={"x-goog-api-key": self.api_key,
+                         "content-type": "application/json"},
+            )
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return json.load(response)
+
+        try:
+            body = call(self.model)
+        except urllib.error.HTTPError as error:
+            if error.code == 404:  # model name unknown → discover and retry once
+                self.model = self._discover_model()
+                body = call(self.model)
+            else:  # surface Google's own explanation, not just the code
+                detail = error.read().decode(errors="replace")[:300]
+                raise RuntimeError(f"Gemini HTTP {error.code}: {detail}") from error
         return body["candidates"][0]["content"]["parts"][0]["text"]
 
 
