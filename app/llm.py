@@ -50,6 +50,35 @@ class AnthropicProvider:
         return body["content"][0]["text"]
 
 
+class GeminiProvider:
+    """Talks to Google's Gemini API — the free-tier brain.
+
+    Same shape as AnthropicProvider: HTTPS POST, key in a header,
+    prompt in, text out. Different provider, same socket.
+    """
+
+    API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+    def complete(self, prompt: str, max_tokens: int = 1024) -> str:
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"maxOutputTokens": max_tokens},
+        }
+        request = urllib.request.Request(
+            self.API_URL.format(model=self.model),
+            data=json.dumps(payload).encode(),
+            headers={"x-goog-api-key": self.api_key,
+                     "content-type": "application/json"},
+        )
+        with urllib.request.urlopen(request, timeout=60) as response:
+            body = json.load(response)
+        return body["candidates"][0]["content"]["parts"][0]["text"]
+
+
 class MockProvider:
     """A PRETEND LLM for offline development — no API key, no cost.
 
@@ -118,7 +147,10 @@ def get_llm():
     Real key in the environment → real Claude. Otherwise → mock,
     so development never blocks on a key or a network.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if api_key:
-        return AnthropicProvider(api_key)
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if anthropic_key:
+        return AnthropicProvider(anthropic_key)
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    if gemini_key:
+        return GeminiProvider(gemini_key)
     return MockProvider()

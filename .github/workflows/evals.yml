@@ -1,0 +1,51 @@
+# Evals workflow — the robot runs the golden-set exam with the REAL brain.
+#
+# Why here and not on a laptop: GitHub's machines have open internet, and
+# the API key lives safely in GitHub Secrets (Settings → Secrets → Actions),
+# never in code. The scorecard is committed back to eval_reports/ so anyone
+# can read the current measured quality of the system.
+
+name: Evals
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}   # also runnable by hand from the Actions tab
+
+permissions:
+  contents: write         # allowed to commit the scorecard back
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr poppler-utils
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt httpx
+
+      - name: Run the golden-set evals
+        env:
+          # The secret: set once in the repo settings, injected here.
+          # If the secret is absent, this is empty and the mock runs —
+          # the workflow degrades honestly instead of failing.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python -m evals.run_evals
+
+      - name: Publish the scorecard back to the repo
+        run: |
+          mkdir -p eval_reports
+          cp evals/results/run_*.json eval_reports/latest.json
+          cat eval_reports/latest.json
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add eval_reports/latest.json
+          git commit -m "Update eval scorecard [skip ci]" || echo "no change"
+          git push
